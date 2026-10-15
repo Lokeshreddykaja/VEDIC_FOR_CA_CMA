@@ -38,8 +38,27 @@ const products: Product[] = [
 ];
 
 const money = (amount: number) => `\u20B9${amount.toLocaleString("en-IN")}`;
+const caInterSubjects: [string, string[]][] = [
+  ["P1 Advanced Accounting", ["ca-inter-group1", "ca-inter-group1-regular"]],
+  ["P2 Corporate And Other Laws", ["ca-inter-group1", "ca-inter-group1-regular"]],
+  ["P3A Income Tax", ["ca-inter-income-tax", "ca-inter-group1", "ca-inter-group1-regular"]],
+  ["P3B GST", ["ca-inter-group1", "ca-inter-group1-regular"]],
+  ["P4 Cost & Management Accounting", ["ca-inter-group1", "ca-inter-group1-regular"]],
+  ["P5 Auditing And Ethics", ["ca-inter-audit", "ca-inter-group2", "ca-inter-group2-regular"]],
+  ["P6A Financial Management", ["ca-inter-group2", "ca-inter-group2-regular"]],
+  ["P6B Strategic Management", ["ca-inter-group2", "ca-inter-group2-regular"]],
+];
+const caInterCategories = ["34th Strategy", "Exam Oriented", "Regular", "Subject Wise", "MCQ discussion", "Marathon"];
+const caFinalSubjects = ["P2 Advanced Financial Management (AFM)", "P3 Advanced Auditing, Assurance and Professional Ethics", "P4 Direct Tax Laws and International Taxation", "P5 Indirect Tax Laws", "CA Final SPOM Set A Law"];
+const courseCategoryLabels: Record<string, string> = { "34th-strategy": "34th Strategy", "exam-oriented": "Exam Oriented", regular: "Regular", "subject-wise": "Subject Wise", "mcq-discussion": "MCQ Discussion", marathon: "Marathon" };
+
 function ProductCard({ product, onAdd }: { product: Product; onAdd: (id: string) => void }) {
   return <article className="product-card"><div className="product-card-top"><span className="pill">{product.category}</span><span className="product-tag">{product.tag}</span></div><p className="product-type">{product.type} | {product.level}</p><h3><a href={`/product/${product.id}`}>{product.title}</a></h3><p className="product-description">{product.description}</p><div className="product-card-bottom"><strong>{money(product.price)}</strong><div className="product-actions"><a className="text-action" href={`/product/${product.id}`}>Details <span>Â </span></a><button className="small-add" onClick={() => onAdd(product.id)}>Add to cart</button></div></div></article>;
+}
+
+function CatalogCourseCard({ product }: { product: Product }) {
+  const poster = product.poster ?? { badge: product.tag, headline: product.title.replace(/^CA Inter(?:mediate)?\s*-?\s*/i, "") || "CA Intermediate", subline: "CA INTER | 2026", variant: "teal" };
+  return <article className="catalog-course-card"><a className={`course-poster poster-${poster.variant}`} href={`/product/${product.id}`} aria-label={`View ${product.title}`}><span className="poster-kicker">CA INTER</span><span className="poster-badge">{poster.badge}</span><span className="poster-date">{poster.subline}</span><strong>{poster.headline.split("\n").map((line) => <span key={line}>{line}</span>)}</strong>{product.poster?.notice && <><span className="poster-instructor" aria-hidden="true" /><span className="poster-notice">{product.poster.notice}</span><span className="poster-hours">{product.poster.hours}</span></>}<span className="poster-bottom"><b>VEDIC</b><small>CA  CMA  CS EDUCATION</small></span></a><a className="catalog-course-title" href={`/product/${product.id}`}>{product.title}</a><strong className="catalog-course-price">{money(product.price)}</strong></article>;
 }
 
 function PopularCoursesCarousel({ items }: { items: Product[] }) {
@@ -138,6 +157,7 @@ function App() {
   const routerNavigate = useNavigate();
   const path = location.pathname;
   const routeQuery = new URLSearchParams(location.search).get("q") ?? "";
+  const selectedCourseCategory = new URLSearchParams(location.search).get("category") ?? "";
   const [queryDraft, setQueryDraft] = useState({ key: location.key, value: routeQuery });
   const query = queryDraft.key === location.key ? queryDraft.value : routeQuery;
   const setQuery = (value: string) => setQueryDraft({ key: location.key, value });
@@ -145,9 +165,18 @@ function App() {
     try { return JSON.parse(localStorage.getItem("vedic-cart") ?? "[]") as CartLine[]; } catch { return []; }
   });
   const [contactStatus, setContactStatus] = useState("");
+  const [selectedInterSubjects, setSelectedInterSubjects] = useState<string[]>([]);
+  const [selectedInterCategories, setSelectedInterCategories] = useState<string[]>([]);
+  const [interSort, setInterSort] = useState("featured");
+  const [selectedFinalSubjects, setSelectedFinalSubjects] = useState<string[]>([]);
 
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname, location.search]);
   useEffect(() => { localStorage.setItem("vedic-cart", JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    const categoryKey = new URLSearchParams(location.search).get("category") ?? "";
+    const categoryLabel = courseCategoryLabels[categoryKey];
+    setSelectedInterCategories(categoryLabel ? [categoryLabel] : []);
+  }, [location.pathname, location.search]);
 
   const navigate = (href: string) => { routerNavigate(href); window.scrollTo(0, 0); };
   const addToCart = (id: string) => setCart((current) => current.some((item) => item.id === id) ? current.map((item) => item.id === id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { id, quantity: 1 }]);
@@ -161,8 +190,44 @@ function App() {
   const cartItems = cart.map((line) => ({ ...line, product: products.find((product) => product.id === line.id) })).filter((line): line is CartLine & { product: Product } => Boolean(line.product));
   const subtotal = cartItems.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
 
-  const pageTitle = slug === "courses/ca" ? "CA courses" : slug === "courses/cma" ? "CMA courses" : slug === "courses/cs" ? "CS courses" : slug === "books" ? "Books" : slug === "text-series" ? "Text Series" : "Study materials";
+  const basePageTitle = slug === "courses/ca" ? "CA courses" : slug === "courses/cma" ? "CMA courses" : slug === "courses/cs" ? "CS courses" : slug === "books" ? "Books" : slug === "text-series" ? "Text Series" : "Study materials";
+  const pageTitle = courseCategoryLabels[selectedCourseCategory] ? `${basePageTitle} · ${courseCategoryLabels[selectedCourseCategory]}` : basePageTitle;
+  const isCaInterCatalog = slug === "courses/ca/intermediate";
+  const isCaFinalCatalog = slug === "courses/ca/final";
+  const caInterItems = useMemo(() => {
+    let items = products.filter((product) => product.category === "CA" && product.level === "CA Intermediate" && product.type === "Course");
+    if (selectedInterSubjects.length) {
+      const allowedIds = new Set(selectedInterSubjects.flatMap((subject) => caInterSubjects.find(([label]) => label === subject)?.[1] ?? []));
+      items = items.filter((product) => allowedIds.has(product.id));
+    }
+    if (selectedInterCategories.length) {
+      items = items.filter((product) => selectedInterCategories.some((category) => {
+        const text = `${product.title} ${product.description} ${product.tag}`.toLowerCase();
+        if (category === "34th Strategy") return product.id.includes("regular");
+        if (category === "Exam Oriented") return /exam oriented|\beo\b/i.test(text);
+        if (category === "Regular") return /regular/i.test(text);
+        if (category === "Subject Wise") return ["ca-inter-audit", "ca-inter-income-tax"].includes(product.id);
+        return text.includes(category.toLowerCase());
+      }));
+    }
+    return [...items].sort((a, b) => interSort === "price-low" ? a.price - b.price : interSort === "price-high" ? b.price - a.price : interSort === "name" ? a.title.localeCompare(b.title) : products.indexOf(a) - products.indexOf(b));
+  }, [selectedInterSubjects, selectedInterCategories, interSort]);
+  const caFinalItems = useMemo(() => {
+    const items = products.filter((product) => product.category === "CA" && product.level === "CA Final" && product.type === "Course");
+    const filteredItems = selectedFinalSubjects.length ? items.filter((product) => selectedFinalSubjects.some((subject) => subject.startsWith("P3") && /audit/i.test(product.title))) : items;
+    return [...filteredItems].sort((a, b) => interSort === "price-low" ? a.price - b.price : interSort === "price-high" ? b.price - a.price : interSort === "name" ? a.title.localeCompare(b.title) : products.indexOf(a) - products.indexOf(b));
+  }, [selectedFinalSubjects, interSort]);
   const list = slug === "courses/ca" ? products.filter((p) => p.category === "CA") : slug === "courses/cma" ? products.filter((p) => p.category === "CMA") : slug === "courses/cs" ? products.filter((p) => p.category === "CS") : slug === "books" ? products.filter((p) => p.category === "Books") : slug === "text-series" ? products.filter((p) => p.type === "Text series") : products.filter((p) => p.type === "Study material" || p.category === "Books");
+  const categoryList = selectedCourseCategory ? list.filter((product) => {
+    const text = `${product.title} ${product.description} ${product.tag}`.toLowerCase();
+    if (selectedCourseCategory === "34th-strategy") return product.level.includes("Intermediate");
+    if (selectedCourseCategory === "exam-oriented") return /exam oriented|exam-oriented|\beo\b/i.test(text);
+    if (selectedCourseCategory === "regular") return /regular/i.test(text);
+    if (selectedCourseCategory === "subject-wise") return /p\d|subject|audit|tax|law|accounting|cost|management/i.test(text) && !/foundation|intermediate$|final$/i.test(product.title);
+    if (selectedCourseCategory === "mcq-discussion") return /mcq|multiple choice/i.test(text);
+    if (selectedCourseCategory === "marathon") return /marathon/i.test(text);
+    return true;
+  }) : list;
 
   return <div className="site-shell" onClick={(event) => { const anchor = (event.target as HTMLElement).closest("a"); if (anchor instanceof HTMLAnchorElement && anchor.origin === window.location.origin && anchor.getAttribute("href")?.startsWith("/")) { event.preventDefault(); navigate(anchor.getAttribute("href")!); } }}>
     <Navbar cartCount={cartCount} query={query} onQueryChange={setQuery} onSearch={(value) => navigate(`/search?q=${encodeURIComponent(value)}`)} />
@@ -178,13 +243,16 @@ function App() {
         <section className="popular-courses-section"><div className="popular-courses-heading"><div><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 11 16 3l14 8-14 8L2 11Zm5 4.2v7.2c5.4 4.1 12.6 4.1 18 0v-7.2l-9 5.1-9-5.1Z" fill="currentColor"/><path d="M29 12v9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg><h2>CA Inter Courses</h2></div><a href="/courses/ca">View all courses <span>Â </span></a></div><PopularCoursesCarousel items={products.filter((p) => ["ca-inter-group1-regular", "ca-inter-group2-regular"].includes(p.id))} /></section>
         <section className="popular-courses-section"><div className="popular-courses-heading"><div><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 11 16 3l14 8-14 8L2 11Zm5 4.2v7.2c5.4 4.1 12.6 4.1 18 0v-7.2l-9 5.1-9-5.1Z" fill="currentColor"/><path d="M29 12v9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg><h2>CMA Inter Courses</h2></div><a href="/courses/cma">View all courses <span>Â </span></a></div><PopularCoursesCarousel items={products.filter((p) => ["cma-inter-group1-exam", "cma-inter-group2-exam", "cma-inter-group1-regular", "cma-inter-group2-regular"].includes(p.id))} /></section>
         <section className="popular-courses-section"><div className="popular-courses-heading"><div><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 11 16 3l14 8-14 8L2 11Zm5 4.2v7.2c5.4 4.1 12.6 4.1 18 0v-7.2l-9 5.1-9-5.1Z" fill="currentColor"/><path d="M29 12v9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg><h2>CMA Final Courses</h2></div><a href="/courses/cma">View all courses</a></div><PopularCoursesCarousel items={products.filter((p) => ["cma-final-p17-audit", "cma-final-p13-cel", "cma-final-p16-scm"].includes(p.id))} /></section>
-        <section className="course-collection course-collection-cyan"><div className="store-section-title"><div><span className="eyebrow"><i /> PLAN YOUR CMA JOURNEY</span><h2>CMA Courses <em>for every stage</em></h2></div><a className="under-link" href="/courses/cma">View CMA courses <span>?</span></a></div>{renderCards(products.filter((p) => p.category === "CMA"))}</section>
         <section className="student-feedback"><div className="feedback-copy"><span className="eyebrow"><i /> STUDENTS FEEDBACK</span><h2>Learning that<br />moves you <em>forward.</em></h2><p>Every learner has a different journey. We’re proud to support the focus, confidence and progress they build along the way.</p><a className="button button-primary" href="/contact">Join a course <span>?</span></a></div><div className="feedback-carousel"><div className="feedback-controls"><span>STUDENT STORIES</span><div><button type="button" aria-label="Scroll reviews left" onClick={() => document.querySelector('.feedback-cards')?.scrollBy({ left: -360, behavior: 'smooth' })}>←</button><button type="button" aria-label="Scroll reviews right" onClick={() => document.querySelector('.feedback-cards')?.scrollBy({ left: 360, behavior: 'smooth' })}>→</button></div></div><div className="feedback-cards"><article><div className="feedback-stars" aria-label="5 out of 5 stars">★★★★★</div><p>“The classes made difficult topics feel clear. I could plan my preparation and stay consistent.”</p><b>Ananya R.</b><small>CA Intermediate</small></article><article><div className="feedback-stars" aria-label="5 out of 5 stars">★★★★★</div><p>“The examples and revision support helped me approach every subject with more confidence.”</p><b>Rahul K.</b><small>CMA Intermediate</small></article><article><div className="feedback-stars" aria-label="5 out of 5 stars">★★★★★</div><p>“The concepts are explained step by step, and the practice sessions keep me on track.”</p><b>Priya S.</b><small>CA Foundation</small></article><article><div className="feedback-stars" aria-label="5 out of 5 stars">★★★★★</div><p>“I appreciate the structured lessons and clear guidance throughout my exam preparation.”</p><b>Arjun M.</b><small>CS Executive</small></article><article><div className="feedback-stars" aria-label="5 out of 5 stars">★★★★★</div><p>“Regular revision and focused classes have made my study routine much more manageable.”</p><b>Neha P.</b><small>CMA Foundation</small></article></div></div></section>
         <section className="numbers-section"><div className="numbers-intro"><span className="eyebrow">VEDIC AT A GLANCE</span><h2>Numbers that tell<br /><em>our story.</em></h2></div><div className="number-item"><b>25,000<span>+</span></b><small>LEARNERS REACHED</small></div><div className="number-item"><b>2,500<span>+</span></b><small>HOURS OF LECTURES</small></div><div className="number-item"><b>45<span>+</span></b><small>BOOKS & RESOURCES</small></div></section>
         <section className="study-promo"><div className="study-promo-art"><div className="play-button">?</div><span>VEDIC CLASSROOM  COURSE PREVIEW</span></div><div><span className="eyebrow"><i /> BUILD A BETTER STUDY ROUTINE</span><h2>How to improve<br />your <em>focus on studies.</em></h2><p>Small, consistent habits make a real difference. Explore guided courses, practical resources and a learning plan built for your goals.</p><a className="button button-primary" href="/resources">Explore free resources <span>?</span></a></div></section>
         <section className="contact-cta"><div><span className="eyebrow">READY TO GET STARTED?</span><h2>Join a VEDIC<br /><em>course today.</em></h2></div><a className="button button-primary" href="/courses/ca">Join our course <span>?</span></a></section>      </>}
 
-      {(slug === "courses/ca" || slug === "courses/cma" || slug === "courses/cs" || slug === "books" || slug === "text-series" || slug === "resources") && <section className="listing-page section-wrap"><div className="breadcrumb"><a href="/">Home</a><span>/</span>{pageTitle}</div><div className="listing-heading"><span className="eyebrow"><i /> LEARN AT YOUR PACE</span><h1>{pageTitle.split(" ").slice(0, -1).join(" ")} <em>{pageTitle.split(" ").slice(-1)}</em></h1><p>Explore VEDIC programmes and resources, designed to make your preparation more focused and manageable.</p></div>{renderCards(list)}</section>}
+      {(slug === "courses/ca" || slug === "courses/cma" || slug === "courses/cs" || slug === "books" || slug === "text-series" || slug === "resources") && <section className="listing-page section-wrap"><div className="breadcrumb"><a href="/">Home</a><span>/</span>{pageTitle}</div><div className="listing-heading"><span className="eyebrow"><i /> LEARN AT YOUR PACE</span><h1>{pageTitle}</h1><p>Explore VEDIC programmes and resources, designed to make your preparation more focused and manageable.</p></div>{categoryList.length ? renderCards(categoryList) : <p className="empty-note">No courses are available in this category yet. Browse all {basePageTitle.toLowerCase()} to see current courses.</p>}</section>}
+
+      {isCaInterCatalog && <section className="ca-inter-catalog"><aside className="catalog-filter-panel"><div className="catalog-filter-heading"><h2>Filter courses</h2><button type="button" className="catalog-clear-all" onClick={() => { setSelectedInterSubjects([]); setSelectedInterCategories([]); }}>Clear all</button></div><p className="catalog-filter-group-label">CA Inter subjects</p><div className="catalog-filter-options">{caInterSubjects.map(([subject]) => <label key={subject}><input type="checkbox" checked={selectedInterSubjects.includes(subject)} onChange={() => setSelectedInterSubjects((current) => current.includes(subject) ? current.filter((item) => item !== subject) : [...current, subject])} /><span>{subject}</span></label>)}</div><div className="catalog-filter-heading catalog-category-heading"><h2>Course type</h2><button type="button" aria-label="Clear category filters" onClick={() => setSelectedInterCategories([])}>×</button></div><div className="catalog-filter-options">{caInterCategories.map((category) => <label key={category}><input type="checkbox" checked={selectedInterCategories.includes(category)} onChange={() => setSelectedInterCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])} /><span>{category}</span></label>)}</div></aside><div className="catalog-results"><header className="catalog-heading"><span className="eyebrow"><i /> YOUR CA JOURNEY</span><h1>CA Intermediate <em>courses.</em></h1><p>Choose a learning style that fits your preparation. Compare classes and find your next step with VEDIC.</p></header><div className="catalog-toolbar"><span><b>{caInterItems.length}</b> courses available</span><label>Sort by<select value={interSort} onChange={(event) => setInterSort(event.target.value)}><option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name</option></select></label></div>{caInterItems.length ? <div className="catalog-course-grid">{caInterItems.map((product) => <CatalogCourseCard key={product.id} product={product} />)}</div> : <div className="catalog-empty"><h2>No courses match these filters</h2><p>Try clearing a subject or course type filter to see available CA Inter courses.</p><button type="button" onClick={() => { setSelectedInterSubjects([]); setSelectedInterCategories([]); }}>Clear all filters</button></div>}</div></section>}
+
+      {isCaFinalCatalog && <section className="ca-inter-catalog"><aside className="catalog-filter-panel"><div className="catalog-filter-heading"><h2>Subject</h2><button type="button" className="catalog-clear-all" onClick={() => setSelectedFinalSubjects([])}>Clear all</button></div><p className="catalog-filter-group-label">CA Final</p><div className="catalog-filter-options">{caFinalSubjects.map((subject) => <label key={subject}><input type="checkbox" checked={selectedFinalSubjects.includes(subject)} onChange={() => setSelectedFinalSubjects((current) => current.includes(subject) ? current.filter((item) => item !== subject) : [...current, subject])} /><span>{subject}</span></label>)}</div></aside><div className="catalog-results"><header className="catalog-heading"><span className="eyebrow"><i /> YOUR CA JOURNEY</span><h1>CA Final <em>courses.</em></h1><p>Explore CA Final subjects and find focused support for your exam preparation.</p></header><div className="popular-courses-heading catalog-trending-heading"><h2>Trending courses</h2><span>{caFinalItems.length} courses</span></div>{caFinalItems.length ? <PopularCoursesCarousel items={caFinalItems} /> : <div className="catalog-empty"><h2>No courses match these subjects</h2><p>Clear the subject filters to see all available CA Final courses.</p><button type="button" onClick={() => setSelectedFinalSubjects([])}>Clear subjects</button></div>}</div></section>}
 
       {slug === "search" && <section className="listing-page section-wrap"><div className="breadcrumb"><a href="/">Home</a><span>/</span>Search</div><div className="listing-heading"><span className="eyebrow"><i /> SEARCH VEDIC</span><h1>Find your <em>next step.</em></h1><p>{query ? `Showing results for "${query}"` : "Search courses, books and study materials."}</p></div>{renderCards(filtered)}{filtered.length === 0 && <p className="empty-note">No matching resources found. Try another search term.</p>}</section>}
 

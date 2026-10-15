@@ -2,6 +2,7 @@
 
 :root {
   --color-primary: #103238;
+  --color-primary-text: #103238;
   --color-accent: #55C5DC;
   --color-hover: #269BB5;
   --color-secondary: #8995A6;
@@ -24,6 +25,6 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 a { color: inherit; }
-::selection { color: var(--color-primary); background: var(--color-accent); }
-.dark-theme { --color-white: #142f34; --color-background: #19383e; --color-text: #e8f2f3; --color-border: #355158; }
+::selection { color: var(--color-primary-text, var(--color-primary)); background: var(--color-accent); }
+.dark-theme { --color-white: #142f34; --color-background: #19383e; --color-primary-text: #eaf5f6; --color-text: #e8f2f3; --color-secondary: #b5c6ca; --color-border: #456168; --color-hover: #69d1e5; }
 .dark-theme body { background: var(--color-white); }
