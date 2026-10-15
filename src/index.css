@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --color-primary: #103238;
+  --color-accent: #55C5DC;
+  --color-hover: #269BB5;
+  --color-secondary: #8995A6;
+  --color-text: #263D42;
+  --color-white: #FFFFFF;
+  --color-background: #F0FAFC;
+  --color-border: #DCE7E9;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--color-text);
+  background: var(--color-white);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+}
+* { box-sizing: border-box; }
+html { min-width: 320px; scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+::selection { color: var(--color-primary); background: var(--color-accent); }
+.dark-theme { --color-white: #142f34; --color-background: #19383e; --color-text: #e8f2f3; --color-border: #355158; }
+.dark-theme body { background: var(--color-white); }
